@@ -19,6 +19,10 @@
 packageNames:
 
 let
+  # Special registry which is equal to JuliaRegistries/General, but every Versions.toml
+  # entry is augmented with a Nix sha256 hash
+  augmentedRegistry = callPackage ./registry.nix {};
+
   # Some Julia packages require access to Python. Provide a Nixpkgs version so it
   # doesn't try to install its own.
   pythonToUse = let
@@ -40,10 +44,6 @@ let
       --set JULIA_CONDAPKG_BACKEND Null \
       --set JULIA_PYTHONCALL_EXE "@PyCall"
   '';
-
-  # Special registry which is equal to JuliaRegistries/General, but every Versions.toml
-  # entry is augmented with a Nix sha256 hash
-  augmentedRegistry = callPackage ./registry.nix {};
 
   # If our closure ends up with certain packages, add others.
   packageImplications = {
