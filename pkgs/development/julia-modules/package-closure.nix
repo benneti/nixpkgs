@@ -1,8 +1,11 @@
 { lib
-, runCommand
 , julia
+, python3
+, runCommand
+
 , augmentedRegistry
 , packageNames
+, packageImplications
 }:
 
 let
@@ -61,40 +64,72 @@ let
     pkgs, deps_map = _resolve(ctx.io, ctx.env, ctx.registries, pkgs, PRESERVE_NONE, ctx.julia_version)
 '';
 
-in
-
-runCommand "julia-package.yml" { buildInputs = [julia]; } ''
-  mkdir home
-  export HOME=$(pwd)/home
-  export OUT="$out"
-
-  echo "Resolving Julia packages with the following inputs"
-  echo "Julia: ${julia}"
-  echo "Registry: ${augmentedRegistry}"
-  echo "Packages: ${lib.generators.toJSON {} packageNames}"
-
-  # Prevent a warning where Julia tries to download package server info
-  export JULIA_PKG_SERVER=""
-
-  julia -e ' \
+  juliaExpression = packageNames: ''
     import Pkg
     Pkg.Registry.add(Pkg.RegistrySpec(path="${augmentedRegistry}"))
 
     import Pkg.Types: Context, PackageSpec
 
-    input = unique(${lib.generators.toJSON {} packageNames})
+    input = ${lib.generators.toJSON {} packageNames}
+
+    if isfile("extra_package_names.txt")
+      append!(input, readlines("extra_package_names.txt"))
+    end
+
+    input = unique(input)
+
+    println("Packages: " * join(input, " "))
+
     pkgs = [PackageSpec(pkg) for pkg in input]
 
     ctx = Context()
 
     ${resolveCode}
 
-    open(ENV["OUT"], "w") do io
+    open(ENV["out"], "w") do io
       for spec in pkgs
           println(io, "- name: " * spec.name)
           println(io, "  uuid: " * string(spec.uuid))
           println(io, "  version: " * string(spec.version))
       end
     end
-  ';
+  '';
+in
+
+runCommand "julia-package.yml" { buildInputs = [julia (python3.withPackages (ps: with ps; [pyyaml]))]; } ''
+  mkdir home
+  export HOME=$(pwd)/home
+
+  echo "Resolving Julia packages with the following inputs"
+  echo "Julia: ${julia}"
+  echo "Registry: ${augmentedRegistry}"
+
+  # Prevent a warning where Julia tries to download package server info
+  export JULIA_PKG_SERVER=""
+
+  julia -e '${juliaExpression packageNames}';
+
+  # See if we need to add any extra package names based on the closure
+  # and the packageImplications
+  python - <<EOF
+  import json, os, subprocess, yaml
+
+  package_implications = json.loads('${lib.generators.toJSON {} packageImplications}')
+  with open(os.environ["out"]) as f:
+    desired_packages = yaml.safe_load(f)
+
+  extra_package_names = []
+  for pkg in desired_packages:
+    if pkg["name"] in package_implications:
+      extra_package_names.extend(package_implications[pkg["name"]])
+
+  if len(extra_package_names) > 0:
+    with open("extra_package_names.txt", "w") as f:
+      f.write("\n".join(extra_package_names))
+  EOF
+
+  if [ -f extra_package_names.txt ]; then
+    echo "Re-resolving with additional package names"
+    julia -e '${juliaExpression packageNames}';
+  fi
 ''

@@ -50,6 +50,8 @@ let
     inherit augmentedRegistry julia packageNames;
     # If our closure ends up with certain packages, add others.
     packageImplications = {
+      # Because we want to put PythonCall in PyCall mode so it doesn't try to download
+      # Python packages
       PythonCall = ["PyCall"];
     };
   };
