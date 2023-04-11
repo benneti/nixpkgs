@@ -19,13 +19,22 @@
 packageNames:
 
 let
+  # Some Julia packages require access to Python. Provide a Nixpkgs version so it
+  # doesn't try to install its own.
+  pythonToUse = let
+    extraPythonPackages = ((callPackage ./extra-python-packages.nix { inherit python3; }).getExtraPythonPackages packageNames);
+  in (if extraPythonPackages == [] then python3 else python3.withPackages (ps:
+    (map (pkg: lib.getAttr pkg ps) extraPythonPackages))
+  );
+
   # Start by wrapping Julia so it has access to Python and any other extra libs.
-  # (Otherwise it may try to install its own Python.)
   juliaWrapped = runCommand "julia-${julia.version}-wrapped" { buildInputs = [makeWrapper]; inherit makeWrapperArgs; } ''
     mkdir -p $out/bin
     makeWrapper ${julia}/bin/julia $out/bin/julia \
       --suffix LD_LIBRARY_PATH : "${lib.makeLibraryPath extraLibs}" \
-      --set PYTHON ${python3}/bin/python $makeWrapperArgs
+      --set PYTHONHOME "${pythonToUse}" \
+      --prefix PYTHONPATH : "${pythonToUse}/${pythonToUse.sitePackages}" \
+      --set PYTHON ${pythonToUse}/bin/python $makeWrapperArgs
   '';
 
   # Special registry which is equal to JuliaRegistries/General, but every Versions.toml
