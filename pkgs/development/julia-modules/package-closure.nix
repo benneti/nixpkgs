@@ -78,7 +78,7 @@ let
 
     input = unique(input)
 
-    println("Packages: " * join(input, " "))
+    println("Resolving packages: " * join(input, " "))
 
     pkgs = [PackageSpec(pkg) for pkg in input]
 

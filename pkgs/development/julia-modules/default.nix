@@ -45,15 +45,16 @@ let
   # entry is augmented with a Nix sha256 hash
   augmentedRegistry = callPackage ./registry.nix {};
 
+  # If our closure ends up with certain packages, add others.
+  packageImplications = {
+    # Because we want to put PythonCall in PyCall mode so it doesn't try to download
+    # Python packages
+    PythonCall = ["PyCall"];
+  };
+
   # Invoke Julia resolution logic to determine the full dependency closure
   closureYaml = callPackage ./package-closure.nix {
-    inherit augmentedRegistry julia packageNames;
-    # If our closure ends up with certain packages, add others.
-    packageImplications = {
-      # Because we want to put PythonCall in PyCall mode so it doesn't try to download
-      # Python packages
-      PythonCall = ["PyCall"];
-    };
+    inherit augmentedRegistry julia packageNames packageImplications;
   };
 
   # Generate a Nix file consisting of a map from dependency UUID --> fetchgit call:
@@ -122,7 +123,7 @@ let
   # Build a Julia project and depot. The project contains Project.toml/Manifest.toml, while the
   # depot contains package build products (including the precompiled libraries, if precompile=true)
   projectAndDepot = callPackage ./depot.nix {
-    inherit extraLibs overridesToml packageNames precompile;
+    inherit closureYaml extraLibs overridesToml packageNames packageImplications precompile;
     julia = juliaWrapped;
     registry = minimalRegistry;
   };
