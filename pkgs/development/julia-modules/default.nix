@@ -28,13 +28,17 @@ let
   );
 
   # Start by wrapping Julia so it has access to Python and any other extra libs.
+  # Also, prevent various packages (CondaPkg.jl, PythonCall.jl) from trying to do network calls.
   juliaWrapped = runCommand "julia-${julia.version}-wrapped" { buildInputs = [makeWrapper]; inherit makeWrapperArgs; } ''
     mkdir -p $out/bin
     makeWrapper ${julia}/bin/julia $out/bin/julia \
       --suffix LD_LIBRARY_PATH : "${lib.makeLibraryPath extraLibs}" \
       --set PYTHONHOME "${pythonToUse}" \
       --prefix PYTHONPATH : "${pythonToUse}/${pythonToUse.sitePackages}" \
-      --set PYTHON ${pythonToUse}/bin/python $makeWrapperArgs
+      --set PYTHON ${pythonToUse}/bin/python $makeWrapperArgs \
+      --set JULIA_CONDAPKG_OFFLINE yes \
+      --set JULIA_CONDAPKG_BACKEND Null \
+      --set JULIA_PYTHONCALL_EXE "@PyCall"
   '';
 
   # Special registry which is equal to JuliaRegistries/General, but every Versions.toml
@@ -44,6 +48,10 @@ let
   # Invoke Julia resolution logic to determine the full dependency closure
   closureYaml = callPackage ./package-closure.nix {
     inherit augmentedRegistry julia packageNames;
+    # If our closure ends up with certain packages, add others.
+    packageImplications = {
+      PythonCall = ["PyCall"];
+    };
   };
 
   # Generate a Nix file consisting of a map from dependency UUID --> fetchgit call:

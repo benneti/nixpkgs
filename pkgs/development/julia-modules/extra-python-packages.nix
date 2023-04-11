@@ -9,6 +9,7 @@ with lib;
 rec {
   packageMapping = {
     PyPlot = ["matplotlib"];
+    PythonPlot = ["matplotlib"];
     SymPy = ["sympy"];
   };
 

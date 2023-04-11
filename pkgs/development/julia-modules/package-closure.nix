@@ -12,15 +12,11 @@ let
 
   resolveCode1_6 = ''
     import Pkg.API: check_package_name
-    import Pkg.Types: Context, Context!, PackageSpec, PRESERVE_NONE, manifest_info, project_deps_resolve!, registry_resolve!, stdlib_resolve!, ensure_resolved
+    import Pkg.Types: Context!, PRESERVE_NONE, manifest_info, project_deps_resolve!, registry_resolve!, stdlib_resolve!, ensure_resolved
     import Pkg.Operations: _resolve, assert_can_add, is_dep, update_package_add
-
-    input = unique(${lib.generators.toJSON {} packageNames})
-    pkgs = [PackageSpec(pkg) for pkg in input]
 
     foreach(pkg -> check_package_name(pkg.name, :add), pkgs)
     pkgs = deepcopy(pkgs)  # deepcopy for avoid mutating PackageSpec members
-    ctx = Context()
     Context!(ctx)
 
     project_deps_resolve!(ctx, pkgs)
@@ -30,28 +26,22 @@ let
 
     assert_can_add(ctx, pkgs)
 
-    # load manifest data
     for (i, pkg) in pairs(pkgs)
         entry = manifest_info(ctx, pkg.uuid)
         pkgs[i] = update_package_add(ctx, pkg, entry, is_dep(ctx, pkg))
     end
 
-    foreach(pkg -> ctx.env.project.deps[pkg.name] = pkg.uuid, pkgs) # update set of deps
+    foreach(pkg -> ctx.env.project.deps[pkg.name] = pkg.uuid, pkgs)
 
-    # resolve
     pkgs, deps_map = _resolve(ctx, pkgs, PRESERVE_NONE)
 '';
 
   resolveCode1_8 = ''
     import Pkg.API: handle_package_input!
-    import Pkg.Types: Context, PackageSpec, PRESERVE_NONE, project_deps_resolve!, registry_resolve!, stdlib_resolve!, ensure_resolved
+    import Pkg.Types: PRESERVE_NONE, project_deps_resolve!, registry_resolve!, stdlib_resolve!, ensure_resolved
     import Pkg.Operations: _resolve, assert_can_add, update_package_add
 
-    input = unique(${lib.generators.toJSON {} packageNames})
-    pkgs = [PackageSpec(pkg) for pkg in input]
     foreach(handle_package_input!, pkgs)
-
-    ctx = Context()
 
     project_deps_resolve!(ctx.env, pkgs)
     registry_resolve!(ctx.registries, pkgs)
@@ -60,16 +50,14 @@ let
 
     assert_can_add(ctx, pkgs)
 
-    # load manifest data
     for (i, pkg) in pairs(pkgs)
         entry = Pkg.Types.manifest_info(ctx.env.manifest, pkg.uuid)
         is_dep = any(uuid -> uuid == pkg.uuid, [uuid for (name, uuid) in ctx.env.project.deps])
         pkgs[i] = update_package_add(ctx, pkg, entry, is_dep)
     end
 
-    foreach(pkg -> ctx.env.project.deps[pkg.name] = pkg.uuid, pkgs) # update set of deps
+    foreach(pkg -> ctx.env.project.deps[pkg.name] = pkg.uuid, pkgs)
 
-    # resolve
     pkgs, deps_map = _resolve(ctx.io, ctx.env, ctx.registries, pkgs, PRESERVE_NONE, ctx.julia_version)
 '';
 
@@ -91,6 +79,13 @@ runCommand "julia-package.yml" { buildInputs = [julia]; } ''
   julia -e ' \
     import Pkg
     Pkg.Registry.add(Pkg.RegistrySpec(path="${augmentedRegistry}"))
+
+    import Pkg.Types: Context, PackageSpec
+
+    input = unique(${lib.generators.toJSON {} packageNames})
+    pkgs = [PackageSpec(pkg) for pkg in input]
+
+    ctx = Context()
 
     ${resolveCode}
 
