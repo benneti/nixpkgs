@@ -111,22 +111,7 @@ runCommand "julia-package.yml" { buildInputs = [julia (python3.withPackages (ps:
 
   # See if we need to add any extra package names based on the closure
   # and the packageImplications
-  python - <<EOF
-  import json, os, subprocess, yaml
-
-  package_implications = json.loads('${lib.generators.toJSON {} packageImplications}')
-  with open(os.environ["out"]) as f:
-    desired_packages = yaml.safe_load(f)
-
-  extra_package_names = []
-  for pkg in desired_packages:
-    if pkg["name"] in package_implications:
-      extra_package_names.extend(package_implications[pkg["name"]])
-
-  if len(extra_package_names) > 0:
-    with open("extra_package_names.txt", "w") as f:
-      f.write("\n".join(extra_package_names))
-  EOF
+  python ${./find_package_implications.py} "$out" '${lib.generators.toJSON {} packageImplications}' extra_package_names.txt
 
   if [ -f extra_package_names.txt ]; then
     echo "Re-resolving with additional package names"
