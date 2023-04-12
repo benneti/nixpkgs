@@ -81,8 +81,8 @@ let
   #   "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3":"/nix/store/...-NaNMath.jl-0877504",
   #   ...
   # }
-  dependenciesYaml = writeTextFile {
-    name = "julia-dependencies.yml";
+  dependencyUuidToRepo = writeTextFile {
+    name = "dependency-uuid-to-repo.yml";
     text = lib.generators.toYAML {} (lib.mapAttrs repoify (import dependencies { inherit fetchgit; }));
   };
   repoify = uuid: info:
@@ -103,7 +103,7 @@ let
     python ${./minimal_registry.py} \
       "${augmentedRegistry}" \
       "${closureYaml}" \
-      "${dependenciesYaml}" \
+      "${dependencyUuidToRepo}" \
       "$out"
   '';
 
@@ -111,7 +111,7 @@ let
   # produces the desired Overrides.toml.
   artifactsNix = runCommand "julia-artifacts.nix" { buildInputs = [(python3.withPackages (ps: with ps; [toml pyyaml]))]; } ''
     python ${./extract_artifacts.py} \
-      "${dependenciesYaml}" \
+      "${dependencyUuidToRepo}" \
       "${juliaWrapped}/bin/julia" \
       "${./extract_artifacts.jl}" \
       "$out"
@@ -144,7 +144,11 @@ runCommand "julia-${julia.version}-env" {
   # Expose the steps we used along the way in case the user wants to use them, for example to build
   # expressions and build them separately to avoid IFD.
   inherit dependencies;
-  inherit dependenciesYaml;
+  dependencyUuidToInfo = writeTextFile {
+    name = "dependency-uuid-to-info.yml";
+    text = lib.generators.toYAML {} (import dependencies { inherit fetchgit; });
+  };
+  inherit dependencyUuidToRepo;
   inherit minimalRegistry;
   inherit artifactsNix;
   inherit overridesToml;
