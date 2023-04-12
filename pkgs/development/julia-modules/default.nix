@@ -13,6 +13,7 @@
 , julia
 , extraLibs ? []
 , precompile ? true
+, setDefaultDepot ? true
 , makeWrapperArgs ? ""
 }:
 
@@ -154,9 +155,11 @@ runCommand "julia-${julia.version}-env" {
   inherit overridesToml;
   inherit overridesTomlRaw;
   inherit projectAndDepot;
-} ''
+} (''
   mkdir -p $out/bin
   makeWrapper ${juliaWrapped}/bin/julia $out/bin/julia \
     --suffix JULIA_DEPOT_PATH : "${projectAndDepot}/depot" \
     --suffix JULIA_PROJECT : "${projectAndDepot}/project"
-''
+'' + lib.optionalString setDefaultDepot ''
+  sed -i '2 i\JULIA_DEPOT_PATH=''${JULIA_DEPOT_PATH-"$HOME/.julia"}' $out/bin/julia
+'')
