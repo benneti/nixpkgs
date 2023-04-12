@@ -57,9 +57,14 @@ let
     inherit augmentedRegistry julia packageNames packageImplications;
   };
 
-  # Generate a Nix file consisting of a map from dependency UUID --> fetchgit call:
+  # Generate a Nix file consisting of a map from dependency UUID --> package info with fetchgit call:
   # {
-  #   "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" = fetchgit {...};
+  #   "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3" = {
+  #     src = fetchgit {...};
+  #     name = "...";
+  #     version = "...";
+  #     treehash = "...";
+  #   };
   #   ...
   # }
   dependencies = runCommand "julia-sources.nix" { buildInputs = [(python3.withPackages (ps: with ps; [toml pyyaml]))]; } ''
@@ -80,10 +85,10 @@ let
     name = "julia-dependencies.yml";
     text = lib.generators.toYAML {} (lib.mapAttrs repoify (import dependencies { inherit fetchgit; }));
   };
-  repoify = name: src:
-    runCommand ''julia-${name}-repoified'' {buildInputs = [git];} ''
+  repoify = uuid: info:
+    runCommand ''julia-${info.name}-${info.version}'' {buildInputs = [git];} ''
       mkdir -p $out
-      cp -r ${src}/. $out
+      cp -r ${info.src}/. $out
       cd $out
       git init
       git add . -f

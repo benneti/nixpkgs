@@ -31,9 +31,14 @@ with open(out_path, "w") as f:
       version_to_use = all_versions[pkg["version"]]
 
       repo = packageToml["repo"]
-      f.write(f"""  "{uuid}" = fetchgit {{
-    url = "{repo}";
-    rev = "{version_to_use["git-tree-sha1"]}";
-    sha256 = "{version_to_use["nix-sha256"]}";
+      f.write(f"""  "{uuid}" = {{
+    src = fetchgit {{
+      url = "{repo}";
+      rev = "{version_to_use["git-tree-sha1"]}";
+      sha256 = "{version_to_use["nix-sha256"]}";
+    }};
+    name = "{pkg["name"]}";
+    version = "{pkg["version"]}";
+    treehash = "{version_to_use["git-tree-sha1"]}";
   }};\n""")
   f.write("}")
