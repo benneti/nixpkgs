@@ -11,7 +11,7 @@ desired_packages_path = Path(sys.argv[2])
 out_path = Path(sys.argv[3])
 
 with open(desired_packages_path, "r") as f:
-  desired_packages = yaml.safe_load(f)
+  desired_packages = yaml.safe_load(f) or []
 
 registry = toml.load(registry_path / "Registry.toml")
 
