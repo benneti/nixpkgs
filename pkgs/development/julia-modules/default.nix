@@ -159,7 +159,8 @@ runCommand "julia-${julia.version}-env" {
   mkdir -p $out/bin
   makeWrapper ${juliaWrapped}/bin/julia $out/bin/julia \
     --suffix JULIA_DEPOT_PATH : "${projectAndDepot}/depot" \
-    --set-default JULIA_PROJECT "${projectAndDepot}/project"
+    --set-default JULIA_PROJECT "${projectAndDepot}/project" \
+    --set-default JULIA_LOAD_PATH ':${projectAndDepot}/project/Project.toml'
 '' + lib.optionalString setDefaultDepot ''
   sed -i '2 i\JULIA_DEPOT_PATH=''${JULIA_DEPOT_PATH-"$HOME/.julia"}' $out/bin/julia
 '')
